@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Credit Risk Model — Logistic Regression Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#16232E;
+    --paper:#EDF0E6;
+    --paper-raised:#F7F8F3;
+    --line:#C9CFC0;
+    --teal:#1F6F54;
+    --teal-soft:#E1EDE6;
+    --rust:#A6432C;
+    --rust-soft:#F3E4DF;
+    --gold:#8A6A2F;
+    --gold-soft:#EFE7D6;
+    --muted:#5C6B62;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px 100px;}
+
+  /* ---------- Header ---------- */
+  header{padding:56px 0 40px;border-bottom:1px solid var(--line);}
+  .kicker{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.02em;
+    color:var(--muted);
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:clamp(34px, 5vw, 54px);
+    line-height:1.06;
+    margin:0 0 16px;
+    max-width:14ch;
+  }
+  header p{
+    max-width:56ch;
+    color:var(--muted);
+    font-size:16.5px;
+    margin:0;
+  }
+
+  /* ---------- Section shell ---------- */
+  section.block{padding:52px 0;border-bottom:1px solid var(--line);}
+  section.block:last-of-type{border-bottom:none;}
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:24px;margin-bottom:28px;flex-wrap:wrap;}
+  .section-head h2{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:26px;
+    margin:0;
+  }
+  .section-head .note{font-size:13.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+
+  /* ---------- Applicant + Result grid ---------- */
+  .app-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:0;border:1px solid var(--line);background:var(--paper-raised);}
+  @media (max-width:860px){ .app-grid{grid-template-columns:1fr;} }
+
+  .ledger{padding:32px 32px 28px;border-right:1px solid var(--line);}
+  @media (max-width:860px){ .ledger{border-right:none;border-bottom:1px solid var(--line);} }
+  .ledger h3, .result h3{
+    font-family:'Fraunces', serif;
+    font-weight:500;
+    font-size:19px;
+    margin:0 0 20px;
+  }
+  .field-row{
+    display:grid;grid-template-columns:1.3fr 0.9fr;gap:16px;align-items:center;
+    padding:13px 0;border-bottom:1px solid var(--line);
+  }
+  .field-row label{font-size:14.5px;color:var(--ink);}
+  .field-row .hint{display:block;font-size:12px;color:var(--muted);margin-top:2px;}
+  .field-row input[type=number], .field-row input[type=range]{width:100%;}
+  input[type=number]{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:14.5px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink);
+    width:100%;
+  }
+  input[type=number]:focus{outline:2px solid var(--teal);outline-offset:1px;}
+
+  .calc-btn{
+    margin-top:22px;
+    width:100%;
+    padding:13px 18px;
+    background:var(--ink);
+    color:var(--paper-raised);
+    border:none;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:15px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background .15s ease;
+  }
+  .calc-btn:hover{background:#233549;}
+  .calc-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+
+  .result{padding:32px;}
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;padding:6px 0 10px;}
+  .gauge-readout{text-align:center;margin-top:2px;}
+  .prob-num{font-family:'IBM Plex Mono', monospace;font-size:44px;font-weight:600;line-height:1;}
+  .tier-label{
+    display:inline-block;margin-top:10px;
+    font-family:'IBM Plex Sans', sans-serif;font-weight:500;font-size:14px;
+    padding:5px 12px;border:1px solid var(--line);
+  }
+  .tier-good{background:var(--teal-soft);color:var(--teal);border-color:var(--teal);}
+  .tier-mid{background:var(--gold-soft);color:var(--gold);border-color:var(--gold);}
+  .tier-risk{background:var(--rust-soft);color:var(--rust);border-color:var(--rust);}
+
+  .contrib-title{font-size:13px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin:26px 0 10px;}
+  .contrib-row{display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:center;padding:7px 0;font-size:13.5px;}
+  .contrib-row .bar-track{height:8px;background:var(--paper);position:relative;overflow:hidden;}
+  .contrib-row .bar-fill{height:100%;}
+  .contrib-row .val{font-family:'IBM Plex Mono', monospace;font-size:12.5px;color:var(--muted);text-align:right;min-width:52px;}
+
+  /* ---------- Model notebook ---------- */
+  .notebook-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:32px;}
+  @media (max-width:860px){ .notebook-grid{grid-template-columns:1fr;} }
+  .panel{border:1px solid var(--line);background:var(--paper-raised);padding:26px 28px;}
+  .panel h4{font-family:'Fraunces', serif;font-weight:500;font-size:17px;margin:0 0 6px;}
+  .panel .sub{font-size:13px;color:var(--muted);margin:0 0 18px;}
+  canvas{display:block;width:100%;height:auto;}
+
+  .stat-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin-top:24px;}
+  .stat-cell{background:var(--paper-raised);padding:18px 20px;}
+  .stat-cell .n{font-family:'IBM Plex Mono', monospace;font-size:24px;font-weight:600;}
+  .stat-cell .l{font-size:12.5px;color:var(--muted);margin-top:4px;}
+
+  table.coef-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.coef-table th{
+    text-align:left;font-family:'IBM Plex Mono', monospace;font-weight:500;
+    font-size:11.5px;color:var(--muted);padding:0 0 8px;border-bottom:1px solid var(--line);
+  }
+  table.coef-table td{padding:9px 0;border-bottom:1px solid var(--line);}
+  table.coef-table td.num{font-family:'IBM Plex Mono', monospace;text-align:right;}
+  table.coef-table tr:last-child td{border-bottom:none;}
+
+  footer{padding:36px 0 0;color:var(--muted);font-size:13px;max-width:70ch;}
+  footer strong{color:var(--ink);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="kicker">logistic regression · synthetic training ledger</p>
+    <h1>A credit risk model, trained in your browser.</h1>
+    <p>Enter an applicant's financial profile and a logistic regression classifier — trained live on 900 synthetic
+      lending records — estimates the probability of on-time repayment and sorts the applicant into a risk tier.
+      Every coefficient below was learned by gradient descent, not hand-set.</p>
+  </header>
+
+  <section class="block">
+    <div class="section-head">
+      <h2>Applicant ledger</h2>
+      <span class="note" id="train-status">training model…</span>
+    </div>
+
+    <div class="app-grid">
+      <div class="ledger">
+        <h3>Financial profile</h3>
+
+        <div class="field-row">
+          <label for="income">Annual income
+            <span class="hint">gross, in USD thousands</span>
+          </label>
+          <input type="number" id="income" value="68" min="10" max="400" step="1">
+        </div>
+
+        <div class="field-row">
+          <label for="dti">Debt-to-income ratio
+            <span class="hint">total monthly debt ÷ monthly income</span>
+          </label>
+          <input type="number" id="dti" value="0.28" min="0" max="0.9" step="0.01">
+        </div>
+
+        <div class="field-row">
+          <label for="util">Credit utilization
+            <span class="hint">balances ÷ total available credit</span>
+          </label>
+          <input type="number" id="util" value="0.35" min="0" max="1" step="0.01">
+        </div>
+
+        <div class="field-row">
+          <label for="history">Credit history length
+            <span class="hint">years since oldest account opened</span>
+          </label>
+          <input type="number" id="history" value="7" min="0" max="40" step="1">
+        </div>
+
+        <div class="field-row">
+          <label for="late">Late payments
+            <span class="hint">30+ days, past 24 months</span>
+          </label>
+          <input type="number" id="late" value="1" min="0" max="12" step="1">
+        </div>
+
+        <div class="field-row">
+          <label for="accounts">Open accounts
+            <span class="hint">active credit lines</span>
+          </label>
+          <input type="number" id="accounts" value="5" min="0" max="30" step="1">
+        </div>
+
+        <div class="field-row">
+          <label for="inquiries">Hard inquiries
+            <span class="hint">credit checks, past 12 months</span>
+          </label>
+          <input type="number" id="inquiries" value="1" min="0" max="15" step="1">
+        </div>
+
+        <button class="calc-btn" id="calc-btn">Calculate score</button>
+      </div>
+
+      <div class="result">
+        <h3>Model output</h3>
+        <div class="gauge-wrap">
+          <svg id="gauge" viewBox="0 0 240 140" width="260" height="152"></svg>
+          <div class="gauge-readout">
+            <div class="prob-num" id="prob-num">—</div>
+            <div id="tier-tag" class="tier-label">awaiting calculation</div>
+          </div>
+        </div>
+
+        <div class="contrib-title">what moved the score</div>
+        <div id="contrib-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="section-head">
+      <h2>Model notebook</h2>
+      <span class="note" id="notebook-note">gradient descent, 400 epochs</span>
+    </div>
+
+    <div class="notebook-grid">
+      <div class="panel">
+        <h4>Training loss</h4>
+        <p class="sub">Binary cross-entropy on the 900-record synthetic training set.</p>
+        <canvas id="loss-chart" width="640" height="260"></canvas>
+        <div class="stat-strip" id="stat-strip"></div>
+      </div>
+
+      <div class="panel">
+        <h4>Learned coefficients</h4>
+        <p class="sub">Standardized weights — sign shows direction, magnitude shows influence.</p>
+        <table class="coef-table">
+          <thead><tr><th>Feature</th><th style="text-align:right">Weight</th></tr></thead>
+          <tbody id="coef-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p><strong>About this model.</strong> The training data is synthetically generated in-browser to follow
+      realistic lending relationships (higher income and longer history help; high utilization, high
+      debt-to-income, and recent late payments or hard inquiries hurt). It is a teaching artifact, not a
+      production underwriting system, and it is not financial or lending advice — real credit decisions rely on
+      regulated bureau data, fair-lending compliance, and validated models.</p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- Feature configuration ---------------- */
+  const FEATURES = [
+    { key:'income',    label:'Annual income ($k)',     trueW: 0.048, dir: 1 },
+    { key:'dti',       label:'Debt-to-income ratio',    trueW: -3.4,  dir: 1 },
+    { key:'util',      label:'Credit utilization',      trueW: -2.6,  dir: 1 },
+    { key:'history',   label:'Credit history (yrs)',    trueW: 0.09,  dir: 1 },
+    { key:'late',      label:'Late payments (24mo)',    trueW: -0.62, dir: 1 },
+    { key:'accounts',  label:'Open accounts',           trueW: -0.05, dir: 1 },
+    { key:'inquiries', label:'Hard inquiries (12mo)',   trueW: -0.28, dir: 1 },
+  ];
+  const N_TRAIN = 900;
+
+  /* ---------------- Synthetic dataset generation ---------------- */
+  function randNormal(mean, sd){
+    let u = 1 - Math.random(), v = Math.random();
+    return mean + sd * Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+  }
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function sigmoid(z){ return 1/(1+Math.exp(-z)); }
+
+  function generateApplicant(){
+    const income    = clamp(randNormal(65, 32), 12, 380);
+    const history   = clamp(randNormal(8, 5.5), 0, 38);
+    const late      = clamp(Math.round(Math.abs(randNormal(0.8, 1.4))), 0, 11);
+    const inquiries = clamp(Math.round(Math.abs(randNormal(1.1, 1.3))), 0, 14);
+    const accounts  = clamp(Math.round(randNormal(6, 3)), 0, 26);
+    const util      = clamp(randNormal(0.38 + late*0.03, 0.2), 0, 1);
+    const dti       = clamp(randNormal(0.30 + late*0.02 - income*0.0006, 0.11), 0, 0.88);
+    return { income, dti, util, history, late, accounts, inquiries };
+  }
+
+  function trueLatent(row){
+    let z = 0.35; // intercept bias toward approval, tuned so base rate ~ realistic
+    FEATURES.forEach(f => { z += f.trueW * row[f.key]; });
+    return z;
+  }
+
+  function buildDataset(n){
+    const rows = [];
+    for(let i=0;i<n;i++){
+      const row = generateApplicant();
+      const z = trueLatent(row) + randNormal(0, 1.1); // label noise
+      const p = sigmoid(z);
+      row.label = Math.random() < p ? 1 : 0;
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  /* ---------------- Standardization ---------------- */
+  function computeStats(rows){
+    const stats = {};
+    FEATURES.forEach(f=>{
+      const vals = rows.map(r=>r[f.key]);
+      const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+      const variance = vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/vals.length;
+      stats[f.key] = { mean, sd: Math.sqrt(variance) || 1 };
+    });
+    return stats;
+  }
+  function standardizeRow(row, stats){
+    return FEATURES.map(f => (row[f.key]-stats[f.key].mean)/stats[f.key].sd);
+  }
+
+  /* ---------------- Logistic regression: batch gradient descent ---------------- */
+  function trainLogReg(X, y, epochs, lr){
+    const m = X.length, n = FEATURES.length;
+    let w = new Array(n).fill(0);
+    let b = 0;
+    const lossHistory = [];
+
+    for(let epoch=0; epoch<epochs; epoch++){
+      const gradW = new Array(n).fill(0);
+      let gradB = 0;
+      let loss = 0;
+
+      for(let i=0;i<m;i++){
+        let z = b;
+        for(let j=0;j<n;j++) z += w[j]*X[i][j];
+        const p = sigmoid(z);
+        const err = p - y[i];
+        for(let j=0;j<n;j++) gradW[j] += err * X[i][j];
+        gradB += err;
+        const eps = 1e-9;
+        loss += -( y[i]*Math.log(p+eps) + (1-y[i])*Math.log(1-p+eps) );
+      }
+      for(let j=0;j<n;j++) w[j] -= lr * gradW[j]/m;
+      b -= lr * gradB/m;
+      loss /= m;
+
+      if(epoch % 4 === 0 || epoch === epochs-1) lossHistory.push(loss);
+    }
+    return { w, b, lossHistory };
+  }
+
+  function trainAccuracy(X, y, w, b){
+    let correct = 0;
+    for(let i=0;i<X.length;i++){
+      let z = b;
+      for(let j=0;j<w.length;j++) z += w[j]*X[i][j];
+      const pred = sigmoid(z) >= 0.5 ? 1 : 0;
+      if(pred === y[i]) correct++;
+    }
+    return correct / X.length;
+  }
+
+  /* ---------------- Run training ---------------- */
+  const dataset = buildDataset(N_TRAIN);
+  const stats = computeStats(dataset);
+  const X = dataset.map(r => standardizeRow(r, stats));
+  const y = dataset.map(r => r.label);
+  const { w, b, lossHistory } = trainLogReg(X, y, 400, 0.35);
+  const acc = trainAccuracy(X, y, w, b);
+  const baseRate = y.reduce((a,c)=>a+c,0)/y.length;
+
+  document.getElementById('train-status').textContent = 'model trained · ' + N_TRAIN + ' records';
+
+  /* ---------------- Render: stat strip ---------------- */
+  const statStrip = document.getElementById('stat-strip');
+  const stats3 = [
+    { n: N_TRAIN.toLocaleString(), l:'training records' },
+    { n: (baseRate*100).toFixed(1)+'%', l:'positive class rate' },
+    { n: (acc*100).toFixed(1)+'%', l:'training accuracy' },
+  ];
+  stats3.forEach(s=>{
+    const div = document.createElement('div');
+    div.className = 'stat-cell';
+    div.innerHTML = '<div class="n">'+s.n+'</div><div class="l">'+s.l+'</div>';
+    statStrip.appendChild(div);
+  });
+
+  /* ---------------- Render: coefficient table ---------------- */
+  const coefBody = document.getElementById('coef-body');
+  const order = FEATURES.map((f,i)=>({label:f.label, w:w[i]})).sort((a,b)=>Math.abs(b.w)-Math.abs(a.w));
+  order.forEach(o=>{
+    const tr = document.createElement('tr');
+    const color = o.w >= 0 ? 'var(--teal)' : 'var(--rust)';
+    tr.innerHTML = '<td>'+o.label+'</td><td class="num" style="color:'+color+'">'+(o.w>=0?'+':'')+o.w.toFixed(3)+'</td>';
+    coefBody.appendChild(tr);
+  });
+
+  /* ---------------- Render: loss chart ---------------- */
+  function drawLossChart(){
+    const canvas = document.getElementById('loss-chart');
+    const ctx = canvas.getContext('2d');
+    const cw = canvas.width, ch = canvas.height;
+    ctx.clearRect(0,0,cw,ch);
+
+    const padL=44, padR=14, padT=14, padB=30;
+    const plotW = cw-padL-padR, plotH = ch-padT-padB;
+    const maxLoss = Math.max(...lossHistory);
+    const minLoss = Math.min(...lossHistory);
+
+    // axes
+    ctx.strokeStyle = '#C9CFC0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, padT); ctx.lineTo(padL, padT+plotH); ctx.lineTo(padL+plotW, padT+plotH);
+    ctx.stroke();
+
+    // y labels
+    ctx.fillStyle = '#5C6B62';
+    ctx.font = '11px IBM Plex Mono, monospace';
+    ctx.textAlign = 'right';
+    [maxLoss, (maxLoss+minLoss)/2, minLoss].forEach((v,i)=>{
+      const y = padT + (i/2)*plotH;
+      ctx.fillText(v.toFixed(2), padL-8, y+4);
+    });
+
+    // line
+    ctx.strokeStyle = '#16232E';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    lossHistory.forEach((v,i)=>{
+      const x = padL + (i/(lossHistory.length-1))*plotW;
+      const yy = padT + (1 - (v-minLoss)/((maxLoss-minLoss)||1)) * plotH;
+      if(i===0) ctx.moveTo(x,yy); else ctx.lineTo(x,yy);
+    });
+    ctx.stroke();
+
+    // fill under curve
+    ctx.lineTo(padL+plotW, padT+plotH);
+    ctx.lineTo(padL, padT+plotH);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(31,111,84,0.08)';
+    ctx.fill();
+
+    ctx.fillStyle = '#5C6B62';
+    ctx.textAlign = 'left';
+    ctx.fillText('epoch 0', padL, padT+plotH+18);
+    ctx.textAlign = 'right';
+    ctx.fillText('epoch 400', padL+plotW, padT+plotH+18);
+  }
+  drawLossChart();
+
+  /* ---------------- Gauge ---------------- */
+  const gaugeSvg = document.getElementById('gauge');
+  function polarToXY(cx,cy,r,angleDeg){
+    const a = (angleDeg-180)*Math.PI/180;
+    return { x: cx + r*Math.cos(a), y: cy + r*Math.sin(a) };
+  }
+  function drawGauge(p){
+    const cx=120, cy=120, r=96;
+    const segments = [
+      {from:0, to:0.4, color:'#A6432C'},
+      {from:0.4, to:0.7, color:'#8A6A2F'},
+      {from:0.7, to:1, color:'#1F6F54'},
+    ];
+    let svg = '';
+    segments.forEach(seg=>{
+      const startAngle = 180*seg.from, endAngle = 180*seg.to;
+      const p1 = polarToXY(cx,cy,r,startAngle);
+      const p2 = polarToXY(cx,cy,r,endAngle);
+      const large = (endAngle-startAngle) > 180 ? 1 : 0;
+      svg += `<path d="M ${p1.x} ${p1.y} A ${r} ${r} 0 ${large} 1 ${p2.x} ${p2.y}" stroke="${seg.color}" stroke-width="14" fill="none" stroke-linecap="butt" opacity="0.85"/>`;
+    });
+    const needleAngle = 180*p;
+    const tip = polarToXY(cx,cy,r-16,needleAngle);
+    svg += `<line x1="${cx}" y1="${cy}" x2="${tip.x}" y2="${tip.y}" stroke="#16232E" stroke-width="3" stroke-linecap="round"/>`;
+    svg += `<circle cx="${cx}" cy="${cy}" r="5" fill="#16232E"/>`;
+    gaugeSvg.innerHTML = svg;
+  }
+  drawGauge(0.5);
+
+  /* ---------------- Prediction + explanation ---------------- */
+  function tierFor(p){
+    if(p >= 0.7) return { name:'Prime', cls:'tier-good' };
+    if(p >= 0.4) return { name:'Near-prime', cls:'tier-mid' };
+    return { name:'Subprime risk', cls:'tier-risk' };
+  }
+
+  function readInputs(){
+    return {
+      income:    parseFloat(document.getElementById('income').value)    || 0,
+      dti:       parseFloat(document.getElementById('dti').value)       || 0,
+      util:      parseFloat(document.getElementById('util').value)      || 0,
+      history:   parseFloat(document.getElementById('history').value)   || 0,
+      late:      parseFloat(document.getElementById('late').value)      || 0,
+      accounts:  parseFloat(document.getElementById('accounts').value)  || 0,
+      inquiries: parseFloat(document.getElementById('inquiries').value) || 0,
+    };
+  }
+
+  function predict(){
+    const raw = readInputs();
+    const zvec = standardizeRow(raw, stats);
+    let z = b;
+    const contributions = [];
+    FEATURES.forEach((f,i)=>{
+      const contrib = w[i]*zvec[i];
+      z += contrib;
+      contributions.push({ label:f.label, value:contrib });
+    });
+    const p = sigmoid(z);
+    const tier = tierFor(p);
+
+    document.getElementById('prob-num').textContent = (p*100).toFixed(1)+'%';
+    const tagEl = document.getElementById('tier-tag');
+    tagEl.textContent = tier.name + ' · repayment likelihood';
+    tagEl.className = 'tier-label ' + tier.cls;
+    drawGauge(p);
+
+    contributions.sort((a,c)=>Math.abs(c.value)-Math.abs(a.value));
+    const maxAbs = Math.max(...contributions.map(c=>Math.abs(c.value)), 0.001);
+    const list = document.getElementById('contrib-list');
+    list.innerHTML = '';
+    contributions.forEach(c=>{
+      const pct = Math.abs(c.value)/maxAbs*100;
+      const color = c.value >= 0 ? 'var(--teal)' : 'var(--rust)';
+      const row = document.createElement('div');
+      row.className = 'contrib-row';
+      row.innerHTML = `
+        <div>${c.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="val">${c.value>=0?'+':''}${c.value.toFixed(2)}</div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById('calc-btn').addEventListener('click', predict);
+  predict();
+})();
+</script>
+</body>
+</html>
